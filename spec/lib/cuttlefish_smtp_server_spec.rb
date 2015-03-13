@@ -67,7 +67,7 @@ describe CuttlefishSmtpConnection do
     end
   end
   describe "#receive_message" do
-    it do
+    it "creates an Email" do
       allow_any_instance_of(OutgoingDelivery).to receive(:send)
       data = [
           "MIME-Version: 1.0",
@@ -91,6 +91,21 @@ describe CuttlefishSmtpConnection do
       expect(Email.count).to eq 1
       mail = Email.first
       expect(mail.data).to include("Contra toda autoridad!...excepto mi mamá!")
+    end
+    it "can handle utf8 characters" do
+      allow_any_instance_of(OutgoingDelivery).to receive(:send)
+
+      connection.receive_sender("ciudadanoi@email.org")
+      connection.receive_recipient('Felipe <felipe@fiera-feroz.cl>')
+      connection.receive_recipient('Matthew <matthew@fiera-feroz.cl>')
+      connection.receive_plain_auth(app.smtp_username, app.smtp_password)
+      connection.current.data = 195.chr
+      Sidekiq::Testing.inline! do
+        connection.receive_message
+      end
+      expect(Email.count).to eq 1
+      mail = Email.first
+      expect(mail.data).to eql("Á")
     end
   end
 end
